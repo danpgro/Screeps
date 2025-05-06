@@ -9,19 +9,25 @@ function EnergyMinerControl (currentCreep) {
     sourceId = currentCreep.name.substring(11,26);
     var source = Game.getObjectById(sourceId);
     if (source == null){
-        currentCreep.moveTo(4,47)
+        currentCreep.moveTo(4,47, {reusePath: 50})
     } else{
-        currentCreep.moveTo(source);
+        dropOffTarget = currentCreep.pos.findInRange(FIND_STRUCTURES,2,{
+            filter: { structureType: STRUCTURE_CONTAINER}
+        })
+        currentCreep.moveTo(source, {reusePath: 50});
         currentCreep.harvest(source);
+        currentCreep.repair(dropOffTarget[0]);
         if (currentCreep.store[RESOURCE_ENERGY] >= (currentCreep.store.getCapacity() - (currentCreep.store.getCapacity()%4) - 1)){
-            dropOffTarget = currentCreep.pos.findInRange(FIND_STRUCTURES,1)
-            currentCreep.repair(dropOffTarget[0]);
             currentCreep.transfer(dropOffTarget[0], RESOURCE_ENERGY)
             if (dropOffTarget == "") {
                 currentCreep.drop(RESOURCE_ENERGY)
             }
         }
     }
+}
+
+function createSourceContainer (source) {
+    
 }
 
 // - - - - - - - - - - - - - Haulers - - - - - - - - - - - - - - - - - - - - -
@@ -48,26 +54,26 @@ function HaulerControl (currentCreep) {
                 if (collectEnergy[0] != dropOffTarget) {
                     collectEnergy = collectEnergy[0]
                 } else{
-                    currentCreep.moveTo(source)
+                    currentCreep.moveTo(source, {reusePath: 50})
                 }
             } else {
-                currentCreep.moveTo(source)
+                currentCreep.moveTo(source, {reusePath: 50})
             }
             
             if (collectEnergy == ""){
                 var droppedEnergy = currentCreep.room.find(FIND_DROPPED_RESOURCES)
-                currentCreep.moveTo(droppedEnergy[0]);
+                currentCreep.moveTo(droppedEnergy[0], {reusePath: 50});
                 currentCreep.pickup(droppedEnergy[0]);
             } else{
-                currentCreep.moveTo(collectEnergy);
+                currentCreep.moveTo(collectEnergy, {reusePath: 50});
                 currentCreep.withdraw(collectEnergy, RESOURCE_ENERGY);
             }
         } else {
-            currentCreep.moveTo(dropOffTarget);
+            currentCreep.moveTo(dropOffTarget, {reusePath: 50});
             currentCreep.transfer(dropOffTarget, RESOURCE_ENERGY);
         }
     }  catch {
-        currentCreep.moveTo(4,47)
+        currentCreep.moveTo(4,47, {reusePath: 50})
     }
 
 }
@@ -124,16 +130,6 @@ function DistributorControl (currentCreep) {
     if (distributingCheck == false) {
         targetEnergy = 300
         distributingCheck = distributorLogic(spawnDropOff, pickUpTarget, currentCreep, distributingCheck, targetEnergy)
-        // if (spawnDropOff[0].store[RESOURCE_ENERGY] < 300){
-        //     if (currentCreep.store[RESOURCE_ENERGY] > currentCreep.store.getCapacity()*0.75) {
-        //         distributingCheck = true;
-        //         currentCreep.moveTo(spawnDropOff[0]);
-        //         currentCreep.transfer(spawnDropOff[0], RESOURCE_ENERGY);
-        //     } else{
-        //         currentCreep.moveTo(pickUpTarget);
-        //         currentCreep.withdraw(pickUpTarget, RESOURCE_ENERGY);
-        //     }
-        // }
     }
     
 }
@@ -144,10 +140,10 @@ function distributorLogic (dropOffTarget, pickUpTarget, currentCreep, distributi
         if (dropOffTarget[option].store[RESOURCE_ENERGY] < targetEnergy){
             if (currentCreep.store[RESOURCE_ENERGY] > 0) {
                 distributingCheck = true;
-                currentCreep.moveTo(dropOffTarget[option]);
+                currentCreep.moveTo(dropOffTarget[option], {reusePath: 50});
                 currentCreep.transfer(dropOffTarget[option], RESOURCE_ENERGY);
             } else{
-                currentCreep.moveTo(pickUpTarget);
+                currentCreep.moveTo(pickUpTarget, {reusePath: 50});
                 currentCreep.withdraw(pickUpTarget, RESOURCE_ENERGY);
             }
         }
@@ -173,14 +169,10 @@ function UpgraderControl (currentCreep) {
         filter: { structureType: STRUCTURE_CONTAINER}
     })
 
-    //currentCreep.moveTo(controllerContainer);
     currentCreep.withdraw(controllerContainer[0], RESOURCE_ENERGY);
     currentCreep.repair(controllerContainer[0]);
-    //if (currentCreep.store[RESOURCE_ENERGY] == 0) {
-    //    currentCreep.moveTo(controllerContainer)
-    //} else {
     currentCreep.upgradeController(dropOffController[0]);
-    currentCreep.moveTo(dropOffController[0].pos);
+    currentCreep.moveTo(dropOffController[0].pos, {reusePath: 50});
     //}
 }
 
@@ -195,10 +187,10 @@ function BuilderControl (currentCreep) {
     targetStructure = getDropPoint(currentCreep.room);
     currentCreep.withdraw(targetStructure, RESOURCE_ENERGY);
     if (currentCreep.store[RESOURCE_ENERGY] == 0) {
-        currentCreep.moveTo(targetStructure)
+        currentCreep.moveTo(targetStructure, {reusePath: 50})
     } else {
         constructionTargets = findBuildSites(Game.rooms)
-        currentCreep.moveTo(constructionTargets[0])
+        currentCreep.moveTo(constructionTargets[0], {reusePath: 50})
         currentCreep.build(constructionTargets[0])
     }
 
@@ -229,7 +221,7 @@ function RepairerControl (currentCreep) {
         if (allStructures[building].hits < (0.75 * allStructures[building].hitsMax)){
             //If I have issues it might be worth trying to move this
             // move command out of the for loop
-            currentCreep.moveTo(allStructures[building]);
+            currentCreep.moveTo(allStructures[building], {reusePath: 50});
             currentCreep.repair(allStructuresp[building]);
             repairCheck = true
         }
@@ -248,7 +240,7 @@ function createScout (energy) {
 
 function ScoutControl (currentCreep) {
     const position = new RoomPosition(25, 25, "W2N8");
-    currentCreep.moveTo(position);
+    currentCreep.moveTo(position, {reusePath: 50});
 }
 
 // - - - - - - - - - - - - - Soldiers - - - - - - - - - - - - - - - - - - - - -
@@ -259,20 +251,25 @@ function createRapidResponseFighter(energy) {
 
 }
 
-function RapidResponseFighterControl (currentCreep, hostileArray) {
+function RapidResponseFighterControl (currentCreep) {
+    hostilePresent = false
     for (room in Game.rooms) {
         hostiles = Game.rooms[room].find(FIND_HOSTILE_CREEPS);
         if (hostiles[1] != undefined) {
             console.log("TARGETS SPOTTED ARMED FORCES ON ROUTE")
+            hostilePresent = true
             target = getClosestRoom(currentCreep.room,hostiles)
-            AttackIntoMelee(currentCreep,target);
         } else if (hostiles[0] != undefined) {
             console.log("TARGET SPOTTED ARMED FORCES ON ROUTE")
             target = hostiles[0];
+            hostilePresent = true
+        }
+
+        if (hostilePresent) {
             AttackIntoMelee(currentCreep,target);
-        } else{
+        } else {
             barracks = SearchFlags("Barracks")[0]
-            currentCreep.moveTo(barracks)
+            currentCreep.moveTo(barracks, {reusePath: 50})
         }
     }
 }
@@ -364,7 +361,6 @@ function iterateCreeps () {
             RapidResponseFighterCount += 1;
         }
     }
-
     //Emergency creates
     if (DistributorCount == 0) {
         createDistributor(100)
@@ -372,7 +368,14 @@ function iterateCreeps () {
         createDistributor(300)
     }
 
+    var hostileCount = 0
+    for (room in Game.rooms) {
+        hostileCount = hostileCount + Game.rooms[room].find(FIND_HOSTILE_CREEPS).length;
+    }
+
     if (RapidResponseFighterCount == 0) {
+        createRapidResponseFighter(400)
+    } else if (RapidResponseFighterCount < hostileCount*2) {
         createRapidResponseFighter(400)
     }
 
@@ -386,6 +389,9 @@ function iterateCreeps () {
 
     if ( TotalCount > 27) {
         masterEnergy = Math.floor((Game.spawns["Spawn1"].room.energyCapacityAvailable/100))*100-300
+        if (masterEnergy > 800){
+            masterEnergy = 800
+        }
     }
     
     if (DistributorCount < 3) {
@@ -463,6 +469,10 @@ function roomIteration(room,masterEnergy) {
         }
     
     }
+}
+
+function proximityWallChecker (checkPoint) {
+    
 }
 
 function iterateStructures(room) {
@@ -628,15 +638,21 @@ function RapidResponseFighterArray (energy) {
 
     tickets = tickets - 5
 
-    array.push(ATTACK)
-    array.push(RANGED_ATTACK)
-    array.push(TOUGH)
-    array.push(TOUGH) 
+    moveCount = Math.floor(tickets*0.5)
+    toughCount = Math.floor(tickets*0.5)
 
-    moveCount = Math.floor(tickets)
+    for (var count = 0; count < toughCount; count++){
+        array.push(TOUGH) 
+    }
+
     for (var count = 0; count < moveCount; count++){
         array.push(MOVE) 
     }
+
+    array.push(TOUGH)
+    array.push(TOUGH) 
+    array.push(RANGED_ATTACK)
+    array.push(ATTACK)
 
     return array
 }
