@@ -16,18 +16,22 @@ function EnergyMinerControl (currentCreep) {
         })
         currentCreep.moveTo(source, {reusePath: 50});
         currentCreep.harvest(source);
-        currentCreep.repair(dropOffTarget[0]);
         if (currentCreep.store[RESOURCE_ENERGY] >= (currentCreep.store.getCapacity() - (currentCreep.store.getCapacity()%4) - 1)){
-            currentCreep.transfer(dropOffTarget[0], RESOURCE_ENERGY)
+            createSourceContainer(source)
             if (dropOffTarget == "") {
                 currentCreep.drop(RESOURCE_ENERGY)
+            } else{
+                if (dropOffTarget[0].hits < dropOffTarget[0].hitsMax){
+                    currentCreep.repair(dropOffTarget[0]);
+                }
+                currentCreep.transfer(dropOffTarget[0], RESOURCE_ENERGY)
             }
         }
     }
 }
 
 function createSourceContainer (source) {
-    
+    proximityArray = proximityWallChecker(source)
 }
 
 // - - - - - - - - - - - - - Haulers - - - - - - - - - - - - - - - - - - - - -
@@ -389,8 +393,8 @@ function iterateCreeps () {
 
     if ( TotalCount > 27) {
         masterEnergy = Math.floor((Game.spawns["Spawn1"].room.energyCapacityAvailable/100))*100-300
-        if (masterEnergy > 800){
-            masterEnergy = 800
+        if (masterEnergy > 700){
+            masterEnergy = 700
         }
     }
     
@@ -457,14 +461,13 @@ function roomIteration(room,masterEnergy) {
 
         if (ownedMiners.length < 1) {
             createEnergyMiner(200,currentSource)
-        } else if (ownedMiners.length < 2) {
-            createEnergyMiner(300,currentSource)
         } else if (ownedMiners.length < 3) {
             createEnergyMiner(400,currentSource)
         }
-        if (ownedHaulers.length < 1*distanceMultiplier) {
+
+        if (ownedHaulers.length < 1) {
             createHauler(200,currentSource)
-        } else if (ownedHaulers.length < 2*distanceMultiplier) {
+        } else if (ownedHaulers.length < 2) {
             createHauler(masterEnergy,currentSource)
         }
     
@@ -472,7 +475,51 @@ function roomIteration(room,masterEnergy) {
 }
 
 function proximityWallChecker (checkPoint) {
-    
+    //proximityArray = checkPoint.room.lookForAtArea(LOOK_STRUCTURES, checkPoint.y-1, checkPoint.x-1, checkPoint.y+1, checkPoint.x+1, {asArray: true})
+    checkX = checkPoint.X-1
+    checkY = checkPoint.Y-1
+
+    var currentCheck = []
+    var previousCheck = []
+
+    for (var countX = 0; countX < 3; countX++){
+        checkX = checkX + 1
+        finalCheck = previousCheck
+        previousCheck = currentCheck
+        currentCheck = checkPoint.room.lookForAt(LOOK_TERRAIN,checkX,checkY)
+        console.log("Check: " + currentCheck + " " + previousCheck + " " + finalCheck)
+        console.log(finalCheck == previousCheck)
+        if (finalCheck[0] == previousCheck[0]){
+            console.log("pog")
+            if (previousCheck[0] == currentCheck[0]){
+                console.log("POG")
+            }
+        }
+    }
+    for (var countY = 0; countY < 3; countY++){
+        checkY = checkY + 1
+        finalCheck = previousCheck
+        previousCheck = currentCheck
+        currentCheck = checkPoint.room.lookForAt(LOOK_TERRAIN,checkX,checkY)
+    }
+    for (var countX = 3; countX > 0; countX--){
+        checkX =  checkX - 1
+        finalCheck = previousCheck
+        previousCheck = currentCheck
+        currentCheck = checkPoint.room.lookForAt(LOOK_TERRAIN,checkX,checkY)
+    }
+    for (var countY = 3; countY > 0; countY--){
+        checkY = checkY - 1
+        finalCheck = previousCheck
+        previousCheck = currentCheck
+        currentCheck = checkPoint.room.lookForAt(LOOK_TERRAIN,checkX,checkY)
+    }
+    for (var countX = 0; countX < 2; countX++){
+        checkX = checkX + 1
+        finalCheck = previousCheck
+        previousCheck = currentCheck
+        currentCheck = checkPoint.room.lookForAt(LOOK_TERRAIN,checkX,checkY)
+    }
 }
 
 function iterateStructures(room) {
