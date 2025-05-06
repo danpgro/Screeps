@@ -89,7 +89,6 @@ function DistributorControl (currentCreep) {
         filter: { structureType: STRUCTURE_EXTENSION}
 })
 
-    //console.log(dropOffTarget = dropOffController.pos.findInRange(FIND_STRUCTURES,2))
     var towerDropOff = currentCreep.room.find(FIND_MY_STRUCTURES, {
         filter: { structureType: STRUCTURE_TOWER}
     });
@@ -166,7 +165,6 @@ function createUpgrader (energy) {
 }
 
 function UpgraderControl (currentCreep) {
-    const controller = currentCreep.room.controller;
     var dropOffController = currentCreep.room.find(FIND_MY_STRUCTURES, {
         filter: { structureType: STRUCTURE_CONTROLLER}
     }); 
@@ -175,15 +173,15 @@ function UpgraderControl (currentCreep) {
         filter: { structureType: STRUCTURE_CONTAINER}
     })
 
-    currentCreep.moveTo(controllerContainer);
-    currentCreep.withdraw(controllerContainer, RESOURCE_ENERGY);
-    currentCreep.repair(controllerContainer);
-    if (currentCreep.store[RESOURCE_ENERGY] == 0) {
-        currentCreep.moveTo(getDropPoint(currentCreep.room))
-    } else {
-        currentCreep.upgradeController(controller);
-        currentCreep.moveTo(controller);
-    }
+    //currentCreep.moveTo(controllerContainer);
+    currentCreep.withdraw(controllerContainer[0], RESOURCE_ENERGY);
+    currentCreep.repair(controllerContainer[0]);
+    //if (currentCreep.store[RESOURCE_ENERGY] == 0) {
+    //    currentCreep.moveTo(controllerContainer)
+    //} else {
+    currentCreep.upgradeController(dropOffController[0]);
+    currentCreep.moveTo(dropOffController[0].pos);
+    //}
 }
 
 // - - - - - - - - - - - - - Builders - - - - - - - - - - - - - - - - - - - - -
@@ -249,8 +247,46 @@ function createScout (energy) {
 }
 
 function ScoutControl (currentCreep) {
-    const position = new RoomPosition(26, 21, "W2N9");
+    const position = new RoomPosition(25, 25, "W2N8");
     currentCreep.moveTo(position);
+}
+
+// - - - - - - - - - - - - - Soldiers - - - - - - - - - - - - - - - - - - - - -
+
+function createRapidResponseFighter(energy) {
+    const name = "RapidResponseFighter" + Game.time;
+    Game.spawns["Spawn1"].spawnCreep(RapidResponseFighterArray (energy), name, {memory: {"Role":"Soldier"}})
+
+}
+
+function RapidResponseFighterControl (currentCreep, hostileArray) {
+    for (room in Game.rooms) {
+        hostiles = Game.rooms[room].find(FIND_HOSTILE_CREEPS);
+        if (hostiles[1] != undefined) {
+            console.log("TARGETS SPOTTED ARMED FORCES ON ROUTE")
+            target = getClosestRoom(currentCreep.room,hostiles)
+            AttackIntoMelee(currentCreep,target);
+        } else if (hostiles[0] != undefined) {
+            console.log("TARGET SPOTTED ARMED FORCES ON ROUTE")
+            target = hostiles[0];
+            AttackIntoMelee(currentCreep,target);
+        } else{
+            barracks = SearchFlags("Barracks")[0]
+            currentCreep.moveTo(barracks)
+        }
+    }
+}
+
+function AttackIntoMelee (currentCreep,target){
+    if (currentCreep.room != target.room){
+        currentCreep.moveTo(target)
+    } else{
+        closestTarget = currentCreep.pos.findClosestByRange(FIND_HOSTILE_CREEPS)
+        allHostiles = currentCreep.room.find(FIND_HOSTILE_CREEPS)
+        currentCreep.moveTo(closestTarget)
+        currentCreep.rangedAttack(closestTarget)
+        currentCreep.attack(closestTarget)
+    }
 }
 
 // - - - - - - - - - - - - - Towers - - - - - - - - - - - - - - - - - - - - -
@@ -265,7 +301,7 @@ function towerControl (currentTower) {
         healCheck = false
         for (creep in friendlyCreeps) {
             targetFriendly = friendlyCreeps[creep]
-            if (targetFriendly.hits < targetFriendly.hitsMax * 0.8) {
+            if (targetFriendly.hits < targetFriendly.hitsMax) {
                 currentTower.heal(targetFriendly)
                 healCheck = true
             }
@@ -300,6 +336,7 @@ function iterateCreeps () {
     var DistributorCount = 0
     var RepairerCount = 0
     var ScoutCount = 0
+    var RapidResponseFighterCount = 0
     for (var creepName in Game.creeps) {
         if (creepName.startsWith("EnergyMiner")) {
             EnergyMinerControl(Game.creeps[creepName])
@@ -322,6 +359,9 @@ function iterateCreeps () {
         } else if (creepName.startsWith("Scout")) {
             ScoutControl(Game.creeps[creepName])
             ScoutCount += 1;
+        } else if (creepName.startsWith("RapidResponseFighter")) {
+            RapidResponseFighterControl(Game.creeps[creepName])
+            RapidResponseFighterCount += 1;
         }
     }
 
@@ -330,6 +370,10 @@ function iterateCreeps () {
         createDistributor(100)
     } else if (DistributorCount == 1) {
         createDistributor(300)
+    }
+
+    if (RapidResponseFighterCount == 0) {
+        createRapidResponseFighter(400)
     }
 
     // if (EnergyMinerCount == 0) {
@@ -341,12 +385,16 @@ function iterateCreeps () {
     var TotalCount = EnergyMinerCount + HaulerCount + UpgraderCount + BuilderCount + DistributorCount + RepairerCount
 
     if ( TotalCount > 27) {
-        masterEnergy = Math.floor((Game.spawns["Spawn1"].room.energyCapacityAvailable/100))*100
+        masterEnergy = Math.floor((Game.spawns["Spawn1"].room.energyCapacityAvailable/100))*100-300
     }
     
     if (DistributorCount < 3) {
         createDistributor(masterEnergy)
-    } else if (UpgraderCount < 1) {
+    } else if (RapidResponseFighterCount < 2){
+        if (masterEnergy > 399) {
+            createRapidResponseFighter(masterEnergy)
+        }
+    } else if (UpgraderCount < 2) {
         createUpgrader(masterEnergy)
     } else if (BuilderCount < 3) {
         createBuilder(masterEnergy)
@@ -366,7 +414,8 @@ function iterateCreeps () {
         console.log("Builders: " + BuilderCount)
         console.log("Distributors: " + DistributorCount)
         console.log("Repairers: " + RepairerCount)
-        console.log("Scouts:" + ScoutCount)
+        console.log("Scouts: " + ScoutCount)
+        console.log("Rapid Reponse Fighters: " + RapidResponseFighterCount)
         console.log()
     }
 
@@ -412,6 +461,7 @@ function roomIteration(room,masterEnergy) {
         } else if (ownedHaulers.length < 2*distanceMultiplier) {
             createHauler(masterEnergy,currentSource)
         }
+    
     }
 }
 
@@ -436,21 +486,33 @@ function SearchCreeps (Class) {
     return foundCreeps
 }
 
+function getClosestRoom (origin,list){
+    var closestTarget = null
+    var closestDistance = 100
+    for (index in list){
+        checkedDistance = compareRoomDistance(origin,list[index].room)
+        if (checkedDistance < closestDistance){
+            closestTarget = list[index]
+            closestDistance = checkedDistance
+        }
+    }
+    return closestTarget
+}
+
 function getDropPoint (travellingFrom) {
     const flagList = SearchFlags("DropPoint");
 
-    closestFlag = null
-    closestFlagDistance = 100
+    // closestFlag = null
+    // closestFlagDistance = 100
 
-    for (flag in flagList){
-        checkedDistance = compareRoomDistance(travellingFrom,flagList[flag].room)
-        if (checkedDistance < closestFlagDistance){
-            closestFlag = flagList[flag]
-            closestFlagDistance = checkedDistance
-        }
-    }
-
-    targetFlag = closestFlag
+    // for (flag in flagList){
+    //     checkedDistance = compareRoomDistance(travellingFrom,flagList[flag].room)
+    //     if (checkedDistance < closestFlagDistance){
+    //         closestFlag = flagList[flag]
+    //         closestFlagDistance = checkedDistance
+    //     }
+    // }
+    targetFlag = getClosestRoom(travellingFrom,flagList)
 
     var dropOffObject = null
     targetList = targetFlag.room.lookForAt(LOOK_STRUCTURES,targetFlag.pos)
@@ -496,6 +558,8 @@ function MemoryCleanup () {
     }
     console.log("Cleanup completed")
 }
+
+// - - - - - - - - - - - - - Worker "Classes" - - - - - - - - - - - - - - - - - - - - -
 
 function HaulerClassArray (energy) {
     //50% Carry 50% Move
@@ -554,6 +618,26 @@ function ScoutClassArray (energy) {
     for (var count = 0; count < moveCount; count++){
         array.push(MOVE) 
     }
+    return array
+}
+
+function RapidResponseFighterArray (energy) {
+    //1 attack (+2 tough), 1 ranged_attack, then the rest is move and tough
+    tickets = energy / 50
+    var array = []
+
+    tickets = tickets - 5
+
+    array.push(ATTACK)
+    array.push(RANGED_ATTACK)
+    array.push(TOUGH)
+    array.push(TOUGH) 
+
+    moveCount = Math.floor(tickets)
+    for (var count = 0; count < moveCount; count++){
+        array.push(MOVE) 
+    }
+
     return array
 }
 
