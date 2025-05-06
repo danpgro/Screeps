@@ -101,7 +101,7 @@ function DistributorControl (currentCreep) {
 
     if (distributingCheck == false) {
         targetEnergy = 750
-        if (towerDropOff.pos != undefined) {
+        if (towerDropOff[0].pos != undefined) {
             distributingCheck = distributorLogic(towerDropOff, pickUpTarget, currentCreep, distributingCheck, targetEnergy)
         }
     }
@@ -167,12 +167,19 @@ function createUpgrader (energy) {
 
 function UpgraderControl (currentCreep) {
     const controller = currentCreep.room.controller;
-    targetStructure = Game.getObjectById("681791b5c4f0f7293dc39938");
-    currentCreep.moveTo(targetStructure);
-    currentCreep.withdraw(targetStructure, RESOURCE_ENERGY);
-    currentCreep.repair(targetStructure);
+    var dropOffController = currentCreep.room.find(FIND_MY_STRUCTURES, {
+        filter: { structureType: STRUCTURE_CONTROLLER}
+    }); 
+
+    controllerContainer = dropOffController[0].pos.findInRange(FIND_STRUCTURES,2,{
+        filter: { structureType: STRUCTURE_CONTAINER}
+    })
+
+    currentCreep.moveTo(controllerContainer);
+    currentCreep.withdraw(controllerContainer, RESOURCE_ENERGY);
+    currentCreep.repair(controllerContainer);
     if (currentCreep.store[RESOURCE_ENERGY] == 0) {
-        currentCreep.moveTo(getDropPoint)
+        currentCreep.moveTo(getDropPoint(currentCreep.room))
     } else {
         currentCreep.upgradeController(controller);
         currentCreep.moveTo(controller);
@@ -187,7 +194,7 @@ function createBuilder (energy) {
 }
 
 function BuilderControl (currentCreep) {
-    targetStructure = Game.getObjectById("681791b5c4f0f7293dc39938");
+    targetStructure = getDropPoint(currentCreep.room);
     currentCreep.withdraw(targetStructure, RESOURCE_ENERGY);
     if (currentCreep.store[RESOURCE_ENERGY] == 0) {
         currentCreep.moveTo(targetStructure)
@@ -242,7 +249,7 @@ function createScout (energy) {
 }
 
 function ScoutControl (currentCreep) {
-    const position = new RoomPosition(10, 25, "W2N8");
+    const position = new RoomPosition(26, 21, "W2N9");
     currentCreep.moveTo(position);
 }
 
@@ -316,11 +323,6 @@ function iterateCreeps () {
             ScoutControl(Game.creeps[creepName])
             ScoutCount += 1;
         }
-
-        //if (Math.random() > 0.8) {
-        //    message1 = Math.floor(Math.random()*255).toString()
-        //   Game.creeps[creepName].say(message1 + ".", true)
-        //}
     }
 
     //Emergency creates
@@ -342,7 +344,7 @@ function iterateCreeps () {
         masterEnergy = Math.floor((Game.spawns["Spawn1"].room.energyCapacityAvailable/100))*100
     }
     
-    if (DistributorCount < 2) {
+    if (DistributorCount < 3) {
         createDistributor(masterEnergy)
     } else if (UpgraderCount < 1) {
         createUpgrader(masterEnergy)
@@ -396,18 +398,18 @@ function roomIteration(room,masterEnergy) {
         ownedMiners = SearchCreeps("EnergyMiner"+currentSource.id)
         ownedHaulers = SearchCreeps("Hauler"+currentSource.id)
 
-        if (ownedMiners.length == 0) {
+        distanceMultiplier = compareRoomDistance(room,getDropPoint(room).room) + 1
+
+        if (ownedMiners.length < 1) {
             createEnergyMiner(200,currentSource)
-        } else if (ownedMiners.length == 1) {
+        } else if (ownedMiners.length < 2) {
             createEnergyMiner(300,currentSource)
         } else if (ownedMiners.length < 3) {
             createEnergyMiner(400,currentSource)
         }
-        if (ownedHaulers.length == 0) {
+        if (ownedHaulers.length < 1*distanceMultiplier) {
             createHauler(200,currentSource)
-        } else if (ownedHaulers.length == 1){
-            createHauler(400,currentSource)
-        } else if (ownedHaulers.length < 2) {
+        } else if (ownedHaulers.length < 2*distanceMultiplier) {
             createHauler(masterEnergy,currentSource)
         }
     }
